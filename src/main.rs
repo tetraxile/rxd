@@ -1,7 +1,7 @@
 use std::env;
 use std::fs;
 use std::process;
-use xxd::hex_dump;
+use xxd::Dumper;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -16,5 +16,5 @@ fn main() {
         println!("error: file not found");
         process::exit(1);
     });
-    hex_dump(contents);
+    Dumper::new(contents, false).dump();
 }
