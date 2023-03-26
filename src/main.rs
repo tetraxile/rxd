@@ -1,19 +1,25 @@
-use std::env;
+use clap::Parser;
+use rxd::Dumper;
 use std::fs;
 use std::process;
-use xxd::Dumper;
+
+#[derive(Parser)]
+#[command(version)]
+struct Args {
+    /// input file
+    file_path: String,
+
+    /// number of lines to print
+    #[arg(short)]
+    line_count: Option<usize>,
+}
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    if args.len() < 2 {
-        println!("error: no file provided");
-        process::exit(1);
-    }
-
-    let file_path = &args[1];
-    let contents = fs::read(file_path).unwrap_or_else(|_err| {
-        println!("error: file not found");
+    let file_path = args.file_path;
+    let contents = fs::read(&file_path).unwrap_or_else(|err| {
+        println!("error: could not read file {file_path}: {err}");
         process::exit(1);
     });
     Dumper::new(contents, false).dump();
