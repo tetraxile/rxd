@@ -22,5 +22,5 @@ fn main() {
         println!("error: could not read file {file_path}: {err}");
         process::exit(1);
     });
-    Dumper::new(contents, false).dump();
+    Dumper::new(contents, false, args.line_count).dump();
 }

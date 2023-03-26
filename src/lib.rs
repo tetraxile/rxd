@@ -10,10 +10,18 @@ impl Dumper {
         ]
     }
 
-    fn format_contents(contents: Vec<u8>, control_pictures: bool) -> Vec<String> {
+    fn format_contents(
+        contents: Vec<u8>,
+        control_pictures: bool,
+        line_count: Option<usize>,
+    ) -> Vec<String> {
         contents
             .chunks(16)
             .enumerate()
+            .take_while(|(line_num, _)| match &line_count {
+                Some(line_count) => line_num < line_count,
+                None => true,
+            })
             .map(|(line_num, line_bytes)| {
                 let line_hex = line_bytes
                     .iter()
@@ -39,10 +47,14 @@ impl Dumper {
     }
 
     // show C0 control codes as unicode Control Pictures characters:
-    pub fn new(contents: Vec<u8>, control_pictures: bool) -> Dumper {
+    pub fn new(contents: Vec<u8>, control_pictures: bool, line_count: Option<usize>) -> Dumper {
         let mut lines = Dumper::header();
 
-        lines.extend(Dumper::format_contents(contents, control_pictures));
+        lines.extend(Dumper::format_contents(
+            contents,
+            control_pictures,
+            line_count,
+        ));
 
         Dumper { lines }
     }
@@ -60,7 +72,8 @@ mod tests {
     fn test_format_contents() {
         let result = Dumper::format_contents(
             "Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque omnis dignissimos totam consequuntur aliquid minima natus dolorum sed ipsum illum?".as_bytes().to_vec(),
-            false
+            false,
+            None
         ).join("\n");
 
         let expected = "00000000 | 4c 6f 72 65 6d 20 69 70 73 75 6d 20 64 6f 6c 6f | Lorem ipsum dolo\n\
