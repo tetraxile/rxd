@@ -14,14 +14,14 @@ impl Dumper {
         contents
             .chunks(16)
             .enumerate()
-            .map(|(line_num, bytes)| {
-                let bytes_hex = bytes
+            .map(|(line_num, line_bytes)| {
+                let line_hex = line_bytes
                     .iter()
                     .map(|&byte| format!("{:02x}", byte))
                     .collect::<Vec<_>>()
                     .join(" ");
 
-                let bytes_char: String = bytes
+                let line_ascii: String = line_bytes
                     .iter()
                     .map(|&byte| match byte {
                         byte if byte < 0x20 && control_pictures => {
@@ -33,7 +33,7 @@ impl Dumper {
                     })
                     .collect();
 
-                format!("{:07x}0 | {: <47} | {}", line_num, bytes_hex, bytes_char)
+                format!("{:07x}0 | {: <47} | {}", line_num, line_hex, line_ascii)
             })
             .collect()
     }
