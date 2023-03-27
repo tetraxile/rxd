@@ -1,3 +1,5 @@
+use std::io::Read;
+
 pub struct Dumper {
     lines: Vec<String>,
 }
@@ -10,48 +12,71 @@ impl Dumper {
         ]
     }
 
-    fn format_contents(
-        contents: Vec<u8>,
+    fn format_line(line_num: usize, line_bytes: Vec<u8>, control_pictures: bool) -> String {
+        let line_hex = line_bytes
+            .iter()
+            .map(|&byte| format!("{:02x}", byte))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let line_ascii: String = line_bytes
+            .iter()
+            .map(|&byte| match byte {
+                byte if byte < 0x20 && control_pictures => {
+                    char::from_u32(byte as u32 + 0x2400).unwrap()
+                }
+                byte if byte < 0x20 => '.',
+                byte if byte < 0x7f => byte as char,
+                _ => '.',
+            })
+            .collect();
+
+        format!("{:07x}0 | {: <47} | {}", line_num, line_hex, line_ascii)
+    }
+
+    fn format_contents<R>(
+        mut reader: R,
         control_pictures: bool,
         line_count: Option<usize>,
-    ) -> Vec<String> {
-        contents
-            .chunks(16)
-            .enumerate()
-            .take_while(|(line_num, _)| match &line_count {
-                Some(line_count) => line_num < line_count,
-                None => true,
-            })
-            .map(|(line_num, line_bytes)| {
-                let line_hex = line_bytes
-                    .iter()
-                    .map(|&byte| format!("{:02x}", byte))
-                    .collect::<Vec<_>>()
-                    .join(" ");
+    ) -> Vec<String>
+    where
+        R: Read,
+    {
+        let mut lines = Vec::new();
+        let mut line_bytes = vec![0u8; 16];
+        let mut line_num = 0;
+        loop {
+            let length = reader.read(&mut line_bytes).unwrap();
+            if length == 0 {
+                break;
+            }
 
-                let line_ascii: String = line_bytes
-                    .iter()
-                    .map(|&byte| match byte {
-                        byte if byte < 0x20 && control_pictures => {
-                            char::from_u32(byte as u32 + 0x2400).unwrap()
-                        }
-                        byte if byte < 0x20 => '.',
-                        byte if byte < 0x7f => byte as char,
-                        _ => '.',
-                    })
-                    .collect();
+            if let Some(line_count) = line_count {
+                if line_num >= line_count {
+                    break;
+                }
+            }
 
-                format!("{:07x}0 | {: <47} | {}", line_num, line_hex, line_ascii)
-            })
-            .collect()
+            lines.push(Dumper::format_line(
+                line_num,
+                line_bytes[..length].to_vec(),
+                control_pictures,
+            ));
+            line_num += 1;
+        }
+
+        lines
     }
 
     // show C0 control codes as unicode Control Pictures characters:
-    pub fn new(contents: Vec<u8>, control_pictures: bool, line_count: Option<usize>) -> Dumper {
+    pub fn new<R>(reader: R, control_pictures: bool, line_count: Option<usize>) -> Dumper
+    where
+        R: Read,
+    {
         let mut lines = Dumper::header();
 
         lines.extend(Dumper::format_contents(
-            contents,
+            reader,
             control_pictures,
             line_count,
         ));
@@ -66,15 +91,16 @@ impl Dumper {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
     use super::*;
 
     #[test]
     fn test_format_contents() {
-        let result = Dumper::format_contents(
-            "Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque omnis dignissimos totam consequuntur aliquid minima natus dolorum sed ipsum illum?".as_bytes().to_vec(),
-            false,
-            None
-        ).join("\n");
+        let contents = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque omnis dignissimos totam consequuntur aliquid minima natus dolorum sed ipsum illum?".as_bytes().to_vec();
+        let reader = Cursor::new(contents);
+
+        let result = Dumper::format_contents(reader, false, None).join("\n");
 
         let expected = "00000000 | 4c 6f 72 65 6d 20 69 70 73 75 6d 20 64 6f 6c 6f | Lorem ipsum dolo\n\
                         00000010 | 72 20 73 69 74 20 61 6d 65 74 20 63 6f 6e 73 65 | r sit amet conse\n\

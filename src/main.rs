@@ -1,6 +1,7 @@
 use clap::Parser;
 use rxd::Dumper;
-use std::fs;
+use std::fs::File;
+use std::io::BufReader;
 use std::process;
 
 #[derive(Parser)]
@@ -18,9 +19,10 @@ fn main() {
     let args = Args::parse();
 
     let file_path = args.file_path;
-    let contents = fs::read(&file_path).unwrap_or_else(|err| {
+    let file = File::open(file_path.clone()).unwrap_or_else(|err| {
         println!("error: could not read file {file_path}: {err}");
         process::exit(1);
     });
-    Dumper::new(contents, false, args.line_count).dump();
+    let reader = BufReader::new(file);
+    Dumper::new(reader, false, args.line_count).dump();
 }
