@@ -15,7 +15,7 @@ impl Dumper {
     fn format_line(line_num: usize, line_bytes: Vec<u8>, control_pictures: bool) -> String {
         let line_hex = line_bytes
             .iter()
-            .map(|&byte| format!("{:02x}", byte))
+            .map(|&byte| format!("{byte:02x}"))
             .collect::<Vec<_>>()
             .join(" ");
 
@@ -31,7 +31,7 @@ impl Dumper {
             })
             .collect();
 
-        format!("{:07x}0 | {: <47} | {}", line_num, line_hex, line_ascii)
+        format!("{line_num:07x}0 | {line_hex: <47} | {line_ascii}")
     }
 
     fn format_contents<R>(
@@ -85,7 +85,7 @@ impl Dumper {
     }
 
     pub fn dump(&self) {
-        self.lines.iter().for_each(|line| println!("{}", line));
+        self.lines.iter().for_each(|line| println!("{line}"));
     }
 }
 
