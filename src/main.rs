@@ -26,5 +26,5 @@ fn main() {
         process::exit(1);
     });
     let reader = BufReader::new(file);
-    Dumper::new(reader, false, args.line_count).dump();
+    Dumper::new(reader).line_count(args.line_count).dump();
 }

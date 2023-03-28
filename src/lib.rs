@@ -1,18 +1,32 @@
 use std::io::Read;
 
-pub struct Dumper {
-    lines: Vec<String>,
+pub struct Dumper<R> {
+    reader: R,
+    control_pictures: bool,
+    line_count: Option<usize>,
 }
 
-impl Dumper {
-    fn header() -> Vec<String> {
-        vec![
-            "         | 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f |                 ".into(),
-            "---------+-------------------------------------------------+-----------------".into(),
-        ]
+impl<R: Read> Dumper<R> {
+    // show C0 control codes as unicode Control Pictures characters:
+    pub fn new(reader: R) -> Dumper<R> {
+        Dumper {
+            reader,
+            control_pictures: false,
+            line_count: None,
+        }
     }
 
-    fn format_line(line_num: usize, line_bytes: Vec<u8>, control_pictures: bool) -> String {
+    pub fn control_pictures(mut self, control_pictures: bool) -> Dumper<R> {
+        self.control_pictures = control_pictures;
+        self
+    }
+
+    pub fn line_count(mut self, line_count: Option<usize>) -> Dumper<R> {
+        self.line_count = line_count;
+        self
+    }
+
+    fn format_line(&self, line_num: usize, line_bytes: Vec<u8>) -> String {
         let line_hex = line_bytes
             .iter()
             .map(|&byte| format!("{byte:02x}"))
@@ -22,7 +36,7 @@ impl Dumper {
         let line_ascii: String = line_bytes
             .iter()
             .map(|&byte| match byte {
-                byte if byte < 0x20 && control_pictures => {
+                byte if byte < 0x20 && self.control_pictures => {
                     char::from_u32(byte as u32 + 0x2400).unwrap()
                 }
                 byte if byte < 0x20 => '.',
@@ -34,58 +48,42 @@ impl Dumper {
         format!("{line_num:07x}0 | {line_hex: <47} | {line_ascii}")
     }
 
-    fn format_contents<R>(
-        mut reader: R,
-        control_pictures: bool,
-        line_count: Option<usize>,
-    ) -> Vec<String>
-    where
-        R: Read,
-    {
+    fn format_contents(&mut self) -> Vec<String> {
         let mut lines = Vec::new();
         let mut line_bytes = vec![0u8; 16];
         let mut line_num = 0;
         loop {
-            let length = reader.read(&mut line_bytes).unwrap();
+            let length = self.reader.read(&mut line_bytes).unwrap();
             if length == 0 {
                 break;
             }
 
-            if let Some(line_count) = line_count {
+            if let Some(line_count) = self.line_count {
                 if line_num >= line_count {
                     break;
                 }
             }
 
-            lines.push(Dumper::format_line(
-                line_num,
-                line_bytes[..length].to_vec(),
-                control_pictures,
-            ));
+            lines.push(self.format_line(line_num, line_bytes[..length].to_vec()));
             line_num += 1;
         }
 
         lines
     }
 
-    // show C0 control codes as unicode Control Pictures characters:
-    pub fn new<R>(reader: R, control_pictures: bool, line_count: Option<usize>) -> Dumper
-    where
-        R: Read,
-    {
-        let mut lines = Dumper::header();
-
-        lines.extend(Dumper::format_contents(
-            reader,
-            control_pictures,
-            line_count,
-        ));
-
-        Dumper { lines }
+    fn header() -> Vec<String> {
+        vec![
+            "         | 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f |                 ".into(),
+            "---------+-------------------------------------------------+-----------------".into(),
+        ]
     }
 
-    pub fn dump(&self) {
-        self.lines.iter().for_each(|line| println!("{line}"));
+    pub fn dump(&mut self) {
+        let mut lines = Dumper::<R>::header();
+
+        lines.extend(self.format_contents());
+
+        lines.iter().for_each(|line| println!("{line}"));
     }
 }
 
@@ -110,8 +108,9 @@ mod tests {
              00000090 | 3f                                              | ?";
 
         let lorem = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque omnis dignissimos totam consequuntur aliquid minima natus dolorum sed ipsum illum?";
-        let reader = Cursor::new(lorem);
-        let result = Dumper::format_contents(reader, false, None).join("\n");
+        let reader = Cursor::new(lorem.as_bytes().to_vec());
+
+        let result = Dumper::new(reader).format_contents().join("\n");
 
         assert_eq!(expected, result)
     }
@@ -138,7 +137,10 @@ mod tests {
 
         let all_bytes = (0..=255).collect::<Vec<_>>();
         let reader = Cursor::new(all_bytes);
-        let result = Dumper::format_contents(reader, true, None).join("\n");
+        let result = Dumper::new(reader)
+            .control_pictures(true)
+            .format_contents()
+            .join("\n");
 
         assert_eq!(expected, result)
     }
@@ -159,11 +161,13 @@ mod tests {
 
         let bytes = vec![0xff; 100 * 0x10];
         let reader = Cursor::new(bytes);
-        let result = Dumper::format_contents(reader, false, Some(10)).join("\n");
+        let result = Dumper::new(reader)
+            .line_count(Some(10))
+            .format_contents()
+            .join("\n");
 
         assert_eq!(expected, result);
     }
 
-    // TODO: add png file and test for line count
     // TODO: add docs
 }
