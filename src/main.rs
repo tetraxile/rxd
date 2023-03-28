@@ -25,7 +25,7 @@ fn main() {
     let args = Args::parse();
 
     let file_path = args.file_path;
-    let file = File::open(file_path.clone()).unwrap_or_else(|err| {
+    let file = File::open(&file_path).unwrap_or_else(|err| {
         println!("error: could not read file {file_path}: {err}");
         process::exit(1);
     });
