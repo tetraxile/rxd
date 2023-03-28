@@ -71,15 +71,11 @@ impl<R: Read> Dumper<R> {
         lines
     }
 
-    fn header() -> Vec<String> {
-        vec![
+    pub fn dump(&mut self) {
+        let mut lines = vec![
             "         | 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f |                 ".into(),
             "---------+-------------------------------------------------+-----------------".into(),
-        ]
-    }
-
-    pub fn dump(&mut self) {
-        let mut lines = Dumper::<R>::header();
+        ];
 
         lines.extend(self.format_contents());
 
