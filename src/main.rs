@@ -15,6 +15,10 @@ struct Args {
     /// number of lines to print
     #[arg(short)]
     line_count: Option<usize>,
+
+    /// display C0 control codes as characters
+    #[arg(short)]
+    control_pictures: bool,
 }
 
 fn main() {
@@ -26,5 +30,8 @@ fn main() {
         process::exit(1);
     });
     let reader = BufReader::new(file);
-    Dumper::new(reader).line_count(args.line_count).dump();
+    Dumper::new(reader)
+        .line_count(args.line_count)
+        .control_pictures(args.control_pictures)
+        .dump();
 }
