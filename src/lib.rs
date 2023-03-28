@@ -91,8 +91,7 @@ impl Dumper {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-    use std::io::BufReader;
+    use std::io::Cursor;
 
     use super::*;
 
@@ -110,8 +109,8 @@ mod tests {
              00000080 | 20 73 65 64 20 69 70 73 75 6d 20 69 6c 6c 75 6d |  sed ipsum illum\n\
              00000090 | 3f                                              | ?";
 
-        let file = File::open("files/lorem.txt").unwrap();
-        let reader = BufReader::new(file);
+        let lorem = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque omnis dignissimos totam consequuntur aliquid minima natus dolorum sed ipsum illum?";
+        let reader = Cursor::new(lorem);
         let result = Dumper::format_contents(reader, false, None).join("\n");
 
         assert_eq!(expected, result)
@@ -137,8 +136,8 @@ mod tests {
              000000e0 | e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 ea eb ec ed ee ef | ................\n\
              000000f0 | f0 f1 f2 f3 f4 f5 f6 f7 f8 f9 fa fb fc fd fe ff | ................";
 
-        let file = File::open("files/all_bytes.bin").unwrap();
-        let reader = BufReader::new(file);
+        let all_bytes = (0..=255).collect::<Vec<_>>();
+        let reader = Cursor::new(all_bytes);
         let result = Dumper::format_contents(reader, true, None).join("\n");
 
         assert_eq!(expected, result)

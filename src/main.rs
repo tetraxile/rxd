@@ -4,6 +4,8 @@ use std::fs::File;
 use std::io::BufReader;
 use std::process;
 
+// TODO: add args for byte count, line width, control codes
+
 #[derive(Parser)]
 #[command(version)]
 struct Args {
