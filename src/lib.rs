@@ -142,4 +142,28 @@ mod tests {
 
         assert_eq!(expected, result)
     }
+
+    #[test]
+    fn with_line_count() {
+        let expected =
+            "00000000 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000010 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000020 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000030 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000040 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000050 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000060 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000070 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000080 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................\n\
+             00000090 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................";
+
+        let bytes = vec![0xff; 100 * 0x10];
+        let reader = Cursor::new(bytes);
+        let result = Dumper::format_contents(reader, false, Some(10)).join("\n");
+
+        assert_eq!(expected, result);
+    }
+
+    // TODO: add png file and test for line count
+    // TODO: add docs
 }
