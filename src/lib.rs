@@ -4,6 +4,7 @@ pub struct Dumper<R> {
     reader: R,
     control_pictures: bool,
     line_count: Option<usize>,
+    line_width: usize,
 }
 
 impl<R: Read> Dumper<R> {
@@ -13,6 +14,7 @@ impl<R: Read> Dumper<R> {
             reader,
             control_pictures: false,
             line_count: None,
+            line_width: 0x10,
         }
     }
 
@@ -26,7 +28,15 @@ impl<R: Read> Dumper<R> {
         self
     }
 
-    fn format_line(&self, line_num: usize, line_bytes: Vec<u8>) -> String {
+    pub fn line_width(mut self, line_width: usize) -> Dumper<R> {
+        if line_width == 0 || line_width > 256 {
+            panic!("line width must be in the range 1-256");
+        }
+        self.line_width = line_width;
+        self
+    }
+
+    fn format_line(&self, chunk_offset: usize, line_bytes: Vec<u8>) -> String {
         let line_hex = line_bytes
             .iter()
             .map(|&byte| format!("{byte:02x}"))
@@ -45,13 +55,15 @@ impl<R: Read> Dumper<R> {
             })
             .collect();
 
-        format!("{line_num:07x}0 | {line_hex: <47} | {line_ascii}")
+        let pad_length = self.line_width * 3 - 1;
+
+        format!("{chunk_offset:08x} | {line_hex:<pad_length$} | {line_ascii}")
     }
 
     fn format_contents(&mut self) -> Vec<String> {
         let mut lines = Vec::new();
-        let mut line_bytes = vec![0u8; 16];
-        let mut line_num = 0;
+        let mut line_bytes = vec![0u8; self.line_width];
+        let mut chunk_offset = 0;
         loop {
             let length = self.reader.read(&mut line_bytes).unwrap();
             if length == 0 {
@@ -59,23 +71,35 @@ impl<R: Read> Dumper<R> {
             }
 
             if let Some(line_count) = self.line_count {
-                if line_num >= line_count {
+                if chunk_offset >= line_count * self.line_width {
                     break;
                 }
             }
 
-            lines.push(self.format_line(line_num, line_bytes[..length].to_vec()));
-            line_num += 1;
+            lines.push(self.format_line(chunk_offset, line_bytes[..length].to_vec()));
+            chunk_offset += self.line_width;
         }
 
         lines
     }
 
     pub fn dump(&mut self) {
-        let mut lines = vec![
-            "         | 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f |                 ".into(),
-            "---------+-------------------------------------------------+-----------------".into(),
-        ];
+        let byte_offsets_line = format!(
+            "         | {} | {}",
+            (0..self.line_width)
+                .map(|i| format!("{i:02x}"))
+                .collect::<Vec<String>>()
+                .join(" "),
+            " ".repeat(self.line_width)
+        );
+
+        let separator_line = format!(
+            "---------+-{}-+-{}",
+            "-".repeat(self.line_width * 3 - 1),
+            "-".repeat(self.line_width),
+        );
+
+        let mut lines = vec![byte_offsets_line, separator_line];
 
         lines.extend(self.format_contents());
 
@@ -165,5 +189,20 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-    // TODO: add docs
+    #[test]
+    fn with_line_width() {
+        let expected = "00000000 | ff ff ff ff | ....\n\
+                        00000004 | ff ff ff ff | ....\n\
+                        00000008 | ff ff ff ff | ....\n\
+                        0000000c | ff ff       | ..";
+
+        let bytes = vec![0xff; 3 * 0x4 + 2];
+        let reader = Cursor::new(bytes);
+        let result = Dumper::new(reader)
+            .line_width(4)
+            .format_contents()
+            .join("\n");
+
+        assert_eq!(expected, result);
+    }
 }

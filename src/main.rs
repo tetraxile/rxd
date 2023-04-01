@@ -16,6 +16,10 @@ struct Args {
     #[arg(short)]
     line_count: Option<usize>,
 
+    /// number of bytes per line
+    #[arg(short = 'w', default_value_t = 16)]
+    line_width: usize,
+
     /// display C0 control codes as characters
     #[arg(short)]
     control_pictures: bool,
@@ -32,6 +36,7 @@ fn main() {
     let reader = BufReader::new(file);
     Dumper::new(reader)
         .line_count(args.line_count)
+        .line_width(args.line_width)
         .control_pictures(args.control_pictures)
         .dump();
 }
