@@ -5,6 +5,7 @@ pub struct Dumper<R> {
     control_pictures: bool,
     line_count: Option<usize>,
     line_width: usize,
+    byte_group_length: usize,
 }
 
 impl<R: Read> Dumper<R> {
@@ -15,6 +16,7 @@ impl<R: Read> Dumper<R> {
             control_pictures: false,
             line_count: None,
             line_width: 0x10,
+            byte_group_length: 1,
         }
     }
 
@@ -36,10 +38,29 @@ impl<R: Read> Dumper<R> {
         self
     }
 
+    pub fn byte_group_length(mut self, byte_group_length: usize) -> Dumper<R> {
+        if byte_group_length == 0 || byte_group_length > 256 {
+            panic!("byte group length must be in the range 1-256");
+        }
+        self.byte_group_length = byte_group_length;
+        self
+    }
+
+    fn get_line_hex_pad_length(&self) -> usize {
+        let group_characters = 2 * self.byte_group_length + 1;
+        (group_characters * self.line_width - 1) / self.byte_group_length
+    }
+
     fn format_line(&self, chunk_offset: usize, line_bytes: Vec<u8>) -> String {
         let line_hex = line_bytes
-            .iter()
-            .map(|&byte| format!("{byte:02x}"))
+            .chunks(self.byte_group_length)
+            .map(|chunk| {
+                chunk
+                    .iter()
+                    .map(|&byte| format!("{byte:02x}"))
+                    .collect::<Vec<_>>()
+                    .join("")
+            })
             .collect::<Vec<_>>()
             .join(" ");
 
@@ -55,7 +76,7 @@ impl<R: Read> Dumper<R> {
             })
             .collect();
 
-        let pad_length = self.line_width * 3 - 1;
+        let pad_length = self.get_line_hex_pad_length();
 
         format!("{chunk_offset:08x} | {line_hex:<pad_length$} | {line_ascii}")
     }
@@ -84,18 +105,23 @@ impl<R: Read> Dumper<R> {
     }
 
     pub fn dump(&mut self) {
+        let byte_offsets = (0..self.line_width)
+            .step_by(self.byte_group_length)
+            .map(|i| format!("{i:02x}"))
+            .collect::<Vec<String>>()
+            .join(" ".repeat(self.byte_group_length * 2 - 1).as_str());
+
+        let hex_pad_length = self.get_line_hex_pad_length();
+
         let byte_offsets_line = format!(
-            "         | {} | {}",
-            (0..self.line_width)
-                .map(|i| format!("{i:02x}"))
-                .collect::<Vec<String>>()
-                .join(" "),
+            "         | {:<hex_pad_length$} | {}",
+            byte_offsets,
             " ".repeat(self.line_width)
         );
 
         let separator_line = format!(
             "---------+-{}-+-{}",
-            "-".repeat(self.line_width * 3 - 1),
+            "-".repeat(hex_pad_length),
             "-".repeat(self.line_width),
         );
 
@@ -128,9 +154,9 @@ mod tests {
              00000090 | 3f                                              | ?";
 
         let lorem = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque omnis dignissimos totam consequuntur aliquid minima natus dolorum sed ipsum illum?";
-        let reader = Cursor::new(lorem.as_bytes().to_vec());
+        let mut reader = Cursor::new(lorem.as_bytes().to_vec());
 
-        let result = Dumper::new(reader).format_contents().join("\n");
+        let result = Dumper::new(&mut reader).format_contents().join("\n");
 
         assert_eq!(expected, result)
     }
@@ -156,8 +182,8 @@ mod tests {
              000000f0 | f0 f1 f2 f3 f4 f5 f6 f7 f8 f9 fa fb fc fd fe ff | ................";
 
         let all_bytes = (0..=255).collect::<Vec<_>>();
-        let reader = Cursor::new(all_bytes);
-        let result = Dumper::new(reader)
+        let mut reader = Cursor::new(all_bytes);
+        let result = Dumper::new(&mut reader)
             .control_pictures(true)
             .format_contents()
             .join("\n");
@@ -180,8 +206,8 @@ mod tests {
              00000090 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff | ................";
 
         let bytes = vec![0xff; 100 * 0x10];
-        let reader = Cursor::new(bytes);
-        let result = Dumper::new(reader)
+        let mut reader = Cursor::new(bytes);
+        let result = Dumper::new(&mut reader)
             .line_count(Some(10))
             .format_contents()
             .join("\n");
@@ -197,9 +223,25 @@ mod tests {
                         0000000c | ff ff       | ..";
 
         let bytes = vec![0xff; 3 * 0x4 + 2];
+        let mut reader = Cursor::new(bytes);
+        let result = Dumper::new(&mut reader)
+            .line_width(4)
+            .format_contents()
+            .join("\n");
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn with_byte_group() {
+        let expected = "00000000 | ffffffff ffffffff ffffffff ffffffff | ................\n\
+                        00000010 | ffffffff ffffffff ffffffff ffffffff | ................\n\
+                        00000020 | ffffffff ffffffff ffffffff ffffffff | ................";
+
+        let bytes = vec![0xff; 3 * 0x10];
         let reader = Cursor::new(bytes);
         let result = Dumper::new(reader)
-            .line_width(4)
+            .byte_group_length(4)
             .format_contents()
             .join("\n");
 

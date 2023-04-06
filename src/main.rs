@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::process;
 
-// TODO: add args for byte count, line width, control codes
+// TODO: add args for byte count, start offset
 
 #[derive(Parser)]
 #[command(version)]
@@ -19,6 +19,10 @@ struct Args {
     /// number of bytes per line
     #[arg(short = 'w', default_value_t = 16)]
     line_width: usize,
+
+    /// number of bytes grouped together per line
+    #[arg(short = 'g', default_value_t = 1)]
+    byte_group_length: usize,
 
     /// display C0 control codes as characters
     #[arg(short)]
@@ -37,6 +41,7 @@ fn main() {
     Dumper::new(reader)
         .line_count(args.line_count)
         .line_width(args.line_width)
+        .byte_group_length(args.byte_group_length)
         .control_pictures(args.control_pictures)
         .dump();
 }
