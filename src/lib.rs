@@ -9,7 +9,7 @@ pub struct Dumper<R> {
 }
 
 impl<R: Read> Dumper<R> {
-    // show C0 control codes as unicode Control Pictures characters:
+    /// Construct a new instance of [`Dumper`]
     pub fn new(reader: R) -> Dumper<R> {
         Dumper {
             reader,
