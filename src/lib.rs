@@ -20,16 +20,22 @@ impl<R: Read> Dumper<R> {
         }
     }
 
+    /// Set whether [C0 control codes] should be displayed as characters from the [Control Pictures] Unicode block
+    ///
+    /// [C0 control codes]: https://en.wikipedia.org/wiki/C0_and_C1_control_codes
+    /// [Control Pictures]: https://en.wikipedia.org/wiki/Control_Pictures
     pub fn control_pictures(mut self, control_pictures: bool) -> Dumper<R> {
         self.control_pictures = control_pictures;
         self
     }
 
+    /// Set the number of lines to print
     pub fn line_count(mut self, line_count: Option<usize>) -> Dumper<R> {
         self.line_count = line_count;
         self
     }
 
+    /// Set the number of bytes per line to be printed
     pub fn line_width(mut self, line_width: usize) -> Dumper<R> {
         if line_width == 0 || line_width > 256 {
             panic!("line width must be in the range 1-256");
@@ -38,6 +44,7 @@ impl<R: Read> Dumper<R> {
         self
     }
 
+    /// Set the number of bytes grouped together (groups are separated by a space) per line to be printed
     pub fn byte_group_length(mut self, byte_group_length: usize) -> Dumper<R> {
         if byte_group_length == 0 || byte_group_length > 256 {
             panic!("byte group length must be in the range 1-256");
@@ -104,6 +111,7 @@ impl<R: Read> Dumper<R> {
         lines
     }
 
+    /// Print the formatted dump taking into account the selected options
     pub fn dump(&mut self) {
         let byte_offsets = (0..self.line_width)
             .step_by(self.byte_group_length)
