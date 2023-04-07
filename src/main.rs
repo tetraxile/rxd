@@ -4,13 +4,17 @@ use std::fs::File;
 use std::io::BufReader;
 use std::process;
 
-// TODO: add args for byte count, start offset
+// TODO: add arg for byte count
 
 #[derive(Parser)]
 #[command(version)]
 struct Args {
     /// input file
     file_path: String,
+
+    /// offset of the byte to start dumping at
+    #[arg(short, default_value_t = 0)]
+    start_offset: u64,
 
     /// number of lines to print
     #[arg(short)]
@@ -43,5 +47,6 @@ fn main() {
         .line_width(args.line_width)
         .byte_group_length(args.byte_group_length)
         .control_pictures(args.control_pictures)
+        .start_offset(args.start_offset)
         .dump();
 }

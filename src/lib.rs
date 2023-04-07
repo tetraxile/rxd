@@ -1,6 +1,12 @@
-use std::io::Read;
+use std::{
+    io::{Read, Seek, SeekFrom},
+    process,
+};
 
-pub struct Dumper<R> {
+pub struct Dumper<R>
+where
+    R: Read + Seek,
+{
     reader: R,
     control_pictures: bool,
     line_count: Option<usize>,
@@ -8,7 +14,10 @@ pub struct Dumper<R> {
     byte_group_length: usize,
 }
 
-impl<R: Read> Dumper<R> {
+impl<R: Read> Dumper<R>
+where
+    R: Read + Seek,
+{
     /// Construct a new instance of [`Dumper`]
     pub fn new(reader: R) -> Dumper<R> {
         Dumper {
@@ -50,6 +59,17 @@ impl<R: Read> Dumper<R> {
             panic!("byte group length must be in the range 1-256");
         }
         self.byte_group_length = byte_group_length;
+        self
+    }
+
+    /// Set the offset of the byte in the input buffer to start dumping at
+    pub fn start_offset(mut self, start_offset: u64) -> Dumper<R> {
+        self.reader
+            .seek(SeekFrom::Start(start_offset))
+            .unwrap_or_else(|err| {
+                eprintln!("error: couldn't seek to offset {start_offset}: {err}");
+                process::exit(1);
+            });
         self
     }
 

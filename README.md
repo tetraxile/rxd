@@ -9,6 +9,7 @@ Arguments:
   <FILE_PATH>  input file
 
 Options:
+  -s <START_OFFSET>           offset of the byte to start dumping at [default: 0]
   -l <LINE_COUNT>             number of lines to print
   -w <LINE_WIDTH>             number of bytes per line [default: 16]
   -g <BYTE_GROUP_LENGTH>      number of bytes grouped together per line [default: 1]
